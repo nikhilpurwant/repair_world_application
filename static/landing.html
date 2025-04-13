@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Repair-World</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body { padding-top: 56px; }
+        .navbar { background-color: #f8f9fa !important; }
+    </style>
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-light fixed-top">
+        <div class="container">
+            <a class="navbar-brand" href="#">Repair-World</a>
+            <div class="d-flex align-items-center">
+                <span id="userInfo" class="me-3"></span>
+                <button id="logoutBtn" class="btn btn-outline-danger btn-sm">Logout</button>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container mt-5">
+        <h2>Submit New Repair Request</h2>
+        <form id="addRequestForm" class="mb-3">
+            <div class="mb-3">
+                <label for="deviceSerialNumber" class="form-label">Device Serial Number</label>
+                <input type="text" class="form-control" id="deviceSerialNumber" required>
+            </div>
+            <div class="mb-3">
+                <label for="description" class="form-label">Description of Issue</label>
+                <textarea class="form-control" id="description" rows="3" required></textarea>
+            </div>
+            <button type="submit" class="btn btn-primary">Submit Request</button>
+            <div id="addRequestMessage" class="mt-2" style="display: none;"></div>
+        </form>
+
+        <hr class="my-4">
+
+        <h2>Repair Requests</h2>
+        <form id="fetchRequestsForm" class="mb-3">
+            <div class="row g-3 align-items-center">
+                <div class="col-auto">
+                    <label for="requestId" class="col-form-label">Request ID (Optional)</label>
+                </div>
+                <div class="col-auto">
+                    <input type="number" class="form-control" id="requestId">
+                </div>
+                <div class="col-auto">
+                    <button type="submit" class="btn btn-primary">Fetch Requests</button>
+                </div>
+            </div>
+        </form>
+
+        <table class="table table-striped">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Device Serial</th>
+                    <th>Description</th>
+                    <th>Requested By</th>
+                    <th>Status</th>
+                    <th id="closeHeader" style="display: none;">Action</th>
+                </tr>
+            </thead>
+            <tbody id="requestsTableBody">
+                <tr><td colSpan="6">No requests found.</td></tr>
+            </tbody>
+        </table>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const logoutBtn = document.getElementById('logoutBtn');
+            const fetchRequestsForm = document.getElementById('fetchRequestsForm');
+            const requestsTableBody = document.getElementById('requestsTableBody');
+            const userInfoSpan = document.getElementById('userInfo');
+            const closeHeader = document.getElementById('closeHeader');
+            const addRequestForm = document.getElementById('addRequestForm');
+            const addRequestMessage = document.getElementById('addRequestMessage');
+            const deviceSerialNumberInput = document.getElementById('deviceSerialNumber');
+            const descriptionInput = document.getElementById('description');
+
+            const token = localStorage.getItem('jwtToken');
+            let userRole = null;
+            let loggedInUsername = null;
+
+            if (!token) {
+                window.location.href = '/';
+                return;
+            }
+
+            try {
+                const payloadBase64 = token.split('.')[1];
+                const payloadJson = atob(payloadBase64);
+                const payload = JSON.parse(payloadJson);
+                userInfoSpan.textContent = `${payload.sub} (${payload.role})`;
+                userRole = payload.role;
+                loggedInUsername = payload.sub;
+                if (userRole === 'repairman') {
+                    closeHeader.style.display = 'table-cell';
+                }
+            } catch (error) {
+                console.error('Error decoding token:', error);
+                localStorage.removeItem('jwtToken');
+                window.location.href = '/';
+                return;
+            }
+
+            logoutBtn.addEventListener('click', () => {
+                localStorage.removeItem('jwtToken');
+                window.location.href = '/';
+            });
+
+            addRequestForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const deviceSerialNumber = deviceSerialNumberInput.value;
+                const description = descriptionInput.value;
+
+                try {
+                    const response = await fetch('/api/repair_requests', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${token}`,
+                        },
+                        body: JSON.stringify({ device_serial_number: deviceSerialNumber, description: description }),
+                    });
+
+                    if (response.ok) {
+                        const data = await response.json();
+                        addRequestMessage.textContent = data.message || 'Repair request submitted successfully.';
+                        addRequestMessage.className = 'mt-2 text-success';
+                        addRequestMessage.style.display = 'block';
+                        addRequestForm.reset();
+                        // Optionally, refresh the repair requests list
+                        fetchRequestsForm.dispatchEvent(new Event('submit'));
+                    } else if (response.status === 401) {
+                        localStorage.removeItem('jwtToken');
+                        window.location.href = '/';
+                    } else {
+                        const errorData = await response.json();
+                        addRequestMessage.textContent = errorData.message || 'Failed to submit repair request.';
+                        addRequestMessage.className = 'mt-2 text-danger';
+                        addRequestMessage.style.display = 'block';
+                    }
+                } catch (error) {
+                    console.error('Error submitting request:', error);
+                    addRequestMessage.textContent = 'An unexpected error occurred.';
+                    addRequestMessage.className = 'mt-2 text-danger';
+                    addRequestMessage.style.display = 'block';
+                }
+            });
+
+            fetchRequestsForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const requestId = document.getElementById('requestId').value;
+                let url = '/api/repair_requests';
+                if (requestId) {
+                    url += `?request_id=${requestId}`;
+                }
+
+                try {
+                    const response = await fetch(url, {
+                        method: 'GET',
+                        headers: {
+                            'Authorization': `Bearer ${token}`,
+                        },
+                    });
+
+                    if (response.ok) {
+                        const requests = await response.json();
+                        renderRequests(requests);
+                    } else if (response.status === 401) {
+                        localStorage.removeItem('jwtToken');
+                        window.location.href = '/';
+                    } else {
+                        const errorData = await response.json();
+                        requestsTableBody.innerHTML = `<tr><td colSpan="6">${errorData.message || 'Failed to fetch requests.'}</td></tr>`;
+                    }
+                } catch (error) {
+                    console.error('Error fetching requests:', error);
+                    requestsTableBody.innerHTML = '<tr><td colSpan="6">An unexpected error occurred.</td></tr>';
+                }
+            });
+
+            async function closeRequest(requestId) {
+                if (!confirm(`Are you sure you want to close request ID ${requestId}?`)) {
+                    return;
+                }
+                try {
+                    const response = await fetch(`/api/close/${requestId}`, {
+                        method: 'POST',
+                        headers: {
+                            'Authorization': `Bearer ${token}`,
+                        },
+                    });
+                    if (response.ok) {
+                        alert(`Request ID ${requestId} closed successfully.`);
+                        document.getElementById('fetchRequestsForm').dispatchEvent(new Event('submit'));
+                    } else if (response.status === 403) {
+                        const errorData = await response.json();
+                        alert(errorData.message || 'You are not authorized to close requests.');
+                    } else {
+                        const errorData = await response.json();
+                        alert(errorData.message || `Failed to close request ID ${requestId}.`);
+                    }
+                } catch (error) {
+                    console.error('Error closing request:', error);
+                    alert('An unexpected error occurred while closing the request.');
+                }
+            }
+
+            function renderRequests(requests) {
+                requestsTableBody.innerHTML = '';
+                if (requests.length === 0) {
+                    requestsTableBody.innerHTML = '<tr><td colSpan="6">No requests found.</td></tr>';
+                    return;
+                }
+
+                requests.forEach(request => {
+                    const row = requestsTableBody.insertRow();
+                    row.insertCell().textContent = request.request_id;
+                    row.insertCell().textContent = request.device_serial_number;
+                    row.insertCell().textContent = request.description;
+                    row.insertCell().textContent = request.username;
+                    row.insertCell().textContent = request.status;
+                    if (userRole === 'repairman') {
+                        const actionCell = row.insertCell();
+                        if (request.status === 'Open') {
+                            const closeButton = document.createElement('button');
+                            closeButton.classList.add('btn', 'btn-sm', 'btn-warning');
+                            closeButton.textContent = 'Close';
+                            closeButton.addEventListener('click', () => closeRequest(request.request_id));
+                            actionCell.appendChild(closeButton);
+                        } else {
+                            actionCell.textContent = 'Closed';
+                        }
+                    }
+                });
+            }
+
+            // Fetch all requests on page load
+            fetchRequestsForm.dispatchEvent(new Event('submit'));
+        });
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
