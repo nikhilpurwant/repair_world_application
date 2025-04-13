@@ -6,8 +6,12 @@ import jwt
 import datetime
 import os
 from functools import wraps
+from flask_cors import CORS
+import pytz  # Import the pytz library if you don't have it
+import logging
 
 app = Flask(__name__)
+CORS(app)  # Enable CORS for all routes
 app.config['SECRET_KEY'] = 'your-secret-key'  # Change this in a real application
 
 DATABASE = 'repairs.db'
@@ -56,10 +60,12 @@ def get_db():
     conn.row_factory = sqlite3.Row  # Return rows as dictionaries
     return conn
 
+
 def generate_jwt(username, role):
+    utc_now = datetime.datetime.now(pytz.utc)  # Get current UTC time with timezone info
     payload = {
-        'exp': datetime.datetime.utcnow() + datetime.timedelta(hours=1),
-        'iat': datetime.datetime.utcnow(),
+        'exp': utc_now + datetime.timedelta(hours=1),
+        'iat': utc_now,
         'sub': username,
         'role': role
     }
@@ -77,15 +83,17 @@ def decode_jwt(token):
 def auth_required(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
-        auth_header = request.headers.get('Authorization')
+        logging.info("In decorated_function")
+        logging.warning("In decorated_function1")
+        logging.warning(request.headers)
+        jwt_token = request.headers.get('jwt-token') or request.headers.get('Jwt-token')
         api_key = request.args.get('api_key')
 
         username = None
         role = None
 
-        if auth_header and auth_header.startswith('Bearer '):
-            token = auth_header.split(' ')[1]
-            username, role = decode_jwt(token)
+        if jwt_token:
+            username, role = decode_jwt(jwt_token)
         elif api_key:
             conn = get_db()
             user = conn.execute("SELECT username, role FROM users WHERE api_key = ?", (api_key,)).fetchone()

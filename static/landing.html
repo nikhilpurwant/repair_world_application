@@ -123,7 +123,7 @@
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json',
-                            'Authorization': `Bearer ${token}`,
+                            'jwt-token': token, // Using the custom header
                         },
                         body: JSON.stringify({ device_serial_number: deviceSerialNumber, description: description }),
                     });
@@ -165,7 +165,7 @@
                     const response = await fetch(url, {
                         method: 'GET',
                         headers: {
-                            'Authorization': `Bearer ${token}`,
+                            'jwt-token': token, // Using the custom header
                         },
                     });
 
@@ -193,7 +193,7 @@
                     const response = await fetch(`/api/close/${requestId}`, {
                         method: 'POST',
                         headers: {
-                            'Authorization': `Bearer ${token}`,
+                            'jwt-token': token, // Using the custom header
                         },
                     });
                     if (response.ok) {
