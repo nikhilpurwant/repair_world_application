@@ -8,7 +8,6 @@ import os
 from functools import wraps
 from flask_cors import CORS
 import pytz  # Import the pytz library if you don't have it
-import logging
 
 app = Flask(__name__)
 CORS(app)  # Enable CORS for all routes
@@ -83,9 +82,6 @@ def decode_jwt(token):
 def auth_required(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
-        logging.info("In decorated_function")
-        logging.warning("In decorated_function1")
-        logging.warning(request.headers)
         jwt_token = request.headers.get('jwt-token') or request.headers.get('Jwt-token')
         api_key = request.args.get('api_key')
 
