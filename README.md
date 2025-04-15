@@ -1,6 +1,6 @@
 # RepairWorld Application
 
-This is a simple HTML, JS, Bootstrap And Flask-based application for managing repair requests in the fictional RepairWorld app. The application is created to go along with the [Google ADK - MCP Tutorial]()
+This is a simple HTML, JS, Bootstrap And Flask-based application for managing repair requests in the fictional RepairWorld app. The application is created to go along with the blog post and demo - [26. The simplest MCP demo (Includes Sample provider app, MCP Server and Agent 🤖 code and explanation!)](https://nikhilpurwant.com/post/tech-genai-adk-mcp/)
 
 ---
 
@@ -21,7 +21,7 @@ This is a simple HTML, JS, Bootstrap And Flask-based application for managing re
 ---
 
 ## 🚀 Running Locally
-
+Check the demo video in the [blog post](https://nikhilpurwant.com/post/tech-genai-adk-mcp/)
 ### 1. Install dependencies
 
 ```bash
